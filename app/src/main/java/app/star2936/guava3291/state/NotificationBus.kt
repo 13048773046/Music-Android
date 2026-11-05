@@ -112,30 +112,35 @@ object NotificationBus {
 
     private fun connect() {
         val token = AuthManager.currentUserValue?.token ?: return
-        val url = Api.wsUrl(token)
-        val client = OkHttpClient.Builder()
-            .connectTimeout(15, TimeUnit.SECONDS)
-            .readTimeout(60, TimeUnit.SECONDS)
-            .pingInterval(25, TimeUnit.SECONDS)   // 25s 心跳（OkHttp 原生 ping 帧）
-            .build()
-        val request = Request.Builder().url(url).build()
-        webSocket = client.newWebSocket(request, object : WebSocketListener() {
-            override fun onOpen(ws: WebSocket, response: Response) {
-                reconnectAttempt = 0
-            }
+        val url = Api.wsUrl(token) ?: return  // 地址未配置（如开源版），静默降级不闪退
+        try {
+            val client = OkHttpClient.Builder()
+                .connectTimeout(15, TimeUnit.SECONDS)
+                .readTimeout(60, TimeUnit.SECONDS)
+                .pingInterval(25, TimeUnit.SECONDS)   // 25s 心跳（OkHttp 原生 ping 帧）
+                .build()
+            val request = Request.Builder().url(url).build()
+            webSocket = client.newWebSocket(request, object : WebSocketListener() {
+                override fun onOpen(ws: WebSocket, response: Response) {
+                    reconnectAttempt = 0
+                }
 
-            override fun onMessage(ws: WebSocket, text: String) {
-                handleMessage(text)
-            }
+                override fun onMessage(ws: WebSocket, text: String) {
+                    handleMessage(text)
+                }
 
-            override fun onClosed(ws: WebSocket, code: Int, reason: String) {
-                scheduleReconnect()
-            }
+                override fun onClosed(ws: WebSocket, code: Int, reason: String) {
+                    scheduleReconnect()
+                }
 
-            override fun onFailure(ws: WebSocket, t: Throwable, response: Response?) {
-                scheduleReconnect()
-            }
-        })
+                override fun onFailure(ws: WebSocket, t: Throwable, response: Response?) {
+                    scheduleReconnect()
+                }
+            })
+        } catch (e: Throwable) {
+            // URL 非法 / OkHttp 构造失败等：只记日志，不影响登录与播放
+            android.util.Log.w("NotificationBus", "connect failed: ${e.message}")
+        }
     }
 
     private fun handleMessage(text: String) {

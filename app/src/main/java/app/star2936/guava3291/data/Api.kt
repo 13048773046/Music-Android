@@ -45,9 +45,10 @@ object DeviceInfo {
 }
 
 object Api {
-    // 运行时解密，dex 中无明文域名；开源构建为空值时使用占位地址（不可联网，仅保证可启动）
-    val BASE: String by lazy { Obfuscator.API_BASE.ifEmpty { "https://api.example.invalid/music/api" } }
+    // 运行时解密，dex 中无明文域名
+    val BASE: String by lazy { Obfuscator.API_BASE }
     val WS_PREFIX: String by lazy { Obfuscator.WS_PREFIX }
+    val SERVER_HOST: String by lazy { Obfuscator.SERVER_HOST }
 
     val json = Json { ignoreUnknownKeys = true; coerceInputValues = true }
     private val jsonMedia = "application/json; charset=utf-8".toMediaType()
@@ -60,13 +61,13 @@ object Api {
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(60, TimeUnit.SECONDS)
             .followRedirects(true)
-        // 证书固定：指纹为空（开源构建未注入）时跳过
-        val pin = Obfuscator.SERVER_SPKI_SHA256
+        // 证书固定：host 已配置时才挂载（空 host 时 OkHttp 拒绝构造，会导致首次请求闪退）
         val host = Obfuscator.SERVER_HOST
-        if (pin.isNotEmpty() && host.isNotEmpty()) {
-            builder.certificatePinner(
-                CertificatePinner.Builder().add(host, "sha256/$pin").build()
-            )
+        if (host.isNotBlank()) {
+            val pinner = CertificatePinner.Builder()
+                .add(host, "sha256/${Obfuscator.SERVER_SPKI_SHA256}")
+                .build()
+            builder.certificatePinner(pinner)
         }
         builder
             // 防抓包：命中抓包代理特征端口（Charles/Fiddler/mitmproxy）直接拒绝连接
@@ -121,7 +122,11 @@ object Api {
     fun backgroundUrl(id: String) = "$BASE/background/$id"
     fun streamUrl(id: String, low: Boolean = false): String =
         "$BASE/stream/$id" + if (low) "?br=96" else ""
-    fun wsUrl(token: String) = "${WS_PREFIX}${URLEncoder.encode(token, "UTF-8")}"
+    fun wsUrl(token: String): String? {
+        val prefix = WS_PREFIX
+        if (prefix.isBlank()) return null  // 地址为空时不拼非法 URL，调用方优雅降级
+        return "$prefix${URLEncoder.encode(token, "UTF-8")}"
+    }
 
     class ApiException(val msg: String) : Exception(msg)
 

@@ -3,6 +3,7 @@ package app.star2936.guava3291.security
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import app.star2936.guava3291.data.Api
 import java.net.InetSocketAddress
 import java.net.Proxy
 import java.net.ProxySelector
@@ -23,16 +24,22 @@ object NetworkGuard {
 
     /** 系统代理命中抓包特征端口 → 判定抓包环境，拒绝连接 */
     fun isCaptureProxy(): Boolean {
+        val host = Api.SERVER_HOST
+        if (host.isBlank()) {
+            // 地址未配置时不构造 URI，避免 https:// 抛 URISyntaxException 被静默吞掉
+            return false
+        }
         return try {
             val selector = ProxySelector.getDefault() ?: return false
-            selector.select(URI("https://${Obfuscator.SERVER_HOST}")).any { p ->
+            selector.select(URI("https://$host")).any { p ->
                 p.type() == Proxy.Type.HTTP &&
                     (p.address() as? InetSocketAddress)?.let { addr ->
                         (addr.hostName == "127.0.0.1" || addr.hostName == "localhost") &&
                             addr.port in captureProxyPorts
                     } == true
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            android.util.Log.w("NetworkGuard", "isCaptureProxy check failed: ${e.message}")
             false
         }
     }
