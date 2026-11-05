@@ -10,10 +10,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.Serializable
 import app.star2936.guava3291.data.Api
 import java.util.Calendar
 import java.util.Locale
 
+@Serializable
 data class WeatherInfo(
     val ok: Boolean = false,
     val temp: Double? = null,

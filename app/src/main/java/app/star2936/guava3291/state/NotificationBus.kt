@@ -3,6 +3,7 @@ package app.star2936.guava3291.state
 import app.star2936.guava3291.data.Api
 import app.star2936.guava3291.data.BehaviorEvent
 import app.star2936.guava3291.data.Notification
+import app.star2936.guava3291.data.NotificationBusRef
 import app.star2936.guava3291.data.User
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -49,9 +50,9 @@ object NotificationBus {
     val lastDataEvent = MutableStateFlow<DataEvent?>(null)
     val unreadCount = MutableStateFlow(0)
 
-    // 注册到 Api.reportBehavior（HTTP 回退通道）
+    // 注册到 Api.reportBehavior：行为上报优先走 WS，未连接时返回 false 才回退 HTTP
     fun register() {
-        // WS 通道直连；HTTP 回退由 Api 自行判断
+        NotificationBusRef.sendBehavior = { events -> sendBehavior(events) }
     }
 
     fun startIfNeeded() {
