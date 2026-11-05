@@ -1,0 +1,23 @@
+# Gradle / 构建产物
+build/
+.gradle/
+.cxx/
+*.apk
+*.aab
+*.jar
+!app/libs/*.jar
+
+# 本地配置与签名（不入库）
+local.properties
+keystore.properties
+keystore/
+*.keystore
+*.jks
+
+# IDE
+.idea/
+*.iml
+.DS_Store
+
+# Kotlin / Java
+*.hprof
